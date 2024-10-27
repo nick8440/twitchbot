@@ -3,7 +3,8 @@
 import { Token, TokenWrapper, type BotToken } from "./Tokens.ts";
 import * as path from "https://deno.land/std@0.138.0/path/mod.ts";
 
-const kv = await Deno.openKv(getModuleDir(import.meta) + "/denoKv/denoKv.db");
+//const kv = await Deno.openKv(getModuleDir(import.meta) + "/denoKv/denoKv.db");
+const kv = await Deno.openKv();
 
 export async function getAllTokens(): Promise<TokenWrapper[]> {
   const tokens: TokenWrapper[] = [];
