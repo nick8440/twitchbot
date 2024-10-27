@@ -1,0 +1,7 @@
+{
+  "tasks": {
+    "start-chatbot": "deno run -A --unstable-kv chatbot/main.ts",
+    "start-web": "deno run -A --unstable-kv web/dev.ts",
+    "start": "deno task start-chatbot && deno task start-web"
+  }
+}
