@@ -1,10 +1,12 @@
-//export async function getToken(userID: string): Promise<Token> {}
+/// <reference lib="deno.unstable" />
 
 import { Token, TokenWrapper, type BotToken } from "./Tokens.ts";
 import * as path from "https://deno.land/std@0.138.0/path/mod.ts";
 
-//const kv = await Deno.openKv(getModuleDir(import.meta) + "/denoKv/denoKv.db");
-const kv = await Deno.openKv();
+const isDenoDeploy = Deno.env.get("DENO_DEPLOYMENT_ID") !== undefined;
+const kv = isDenoDeploy
+  ? await Deno.openKv()
+  : await Deno.openKv(getModuleDir(import.meta) + "/denoKv/denoKv.db");
 
 export async function getAllTokens(): Promise<TokenWrapper[]> {
   const tokens: TokenWrapper[] = [];

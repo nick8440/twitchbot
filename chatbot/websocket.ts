@@ -63,30 +63,37 @@ function handleWebSocketMessage(
 
 async function registerEventSubListeners(token: TokenWrapper) {
   // Register channel.chat.message
+
+  const headers = {
+    Authorization: "Bearer " + token.token.accessToken,
+    "Client-Id": constants.CLIENT_ID,
+    "Content-Type": "application/json",
+  };
+  const body = JSON.stringify({
+    type: "channel.chat.message",
+    version: "1",
+    condition: {
+      broadcaster_user_id: token.userID,
+      user_id: token.userID,
+    },
+    transport: {
+      method: "websocket",
+      session_id: websocketSessionID,
+    },
+  });
+
+  console.log("Trying to subscribe");
+  console.log(headers);
+  console.log(body);
+
   const response = await fetch(
     "https://api.twitch.tv/helix/eventsub/subscriptions",
     {
       method: "POST",
-      headers: {
-        Authorization: "Bearer " + token.token.accessToken,
-        "Client-Id": constants.CLIENT_ID,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        type: "channel.chat.message",
-        version: "1",
-        condition: {
-          broadcaster_user_id: token.userID,
-          user_id: token.userID,
-        },
-        transport: {
-          method: "websocket",
-          session_id: websocketSessionID,
-        },
-      }),
+      headers: headers,
+      body: body,
     }
   );
-
   if (response.status != 202) {
     const data = await response.json();
     console.error(
