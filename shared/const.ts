@@ -4,4 +4,4 @@ export const CLIENT_SECRET = Deno.env.get("CLIENT_SECRET")!;
 
 export const EVENTSUB_WEBSOCKET_URL = "wss://eventsub.wss.twitch.tv/ws";
 
-export const SITE_URL = "http://localhost:8000/callback";
+export const SITE_URL = Deno.env.get("SITE_URL")!;
