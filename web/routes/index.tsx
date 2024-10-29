@@ -3,7 +3,7 @@ export default function Home() {
   const scopes = ["channel:bot", "user:read:chat"];
   const href = `https://id.twitch.tv/oauth2/authorize?response_type=code&client_id=${
     constants.CLIENT_ID
-  }&redirect_uri=${constants.SITE_URL}&scope=${scopes.join("+")}`;
+  }&redirect_uri=${constants.SITE_URL}/callback&scope=${scopes.join("+")}`;
   return (
     <div class="px-4 py-8 mx-auto">
       <div class="max-w-screen-md mx-auto flex flex-col items-center justify-center">
