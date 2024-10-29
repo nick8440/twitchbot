@@ -13,7 +13,7 @@ export default async function Callback(_req: Request, ctx: FreshContext) {
       client_secret: constants.CLIENT_SECRET,
       code: code,
       grant_type: "authorization_code",
-      redirect_uri: constants.SITE_URL,
+      redirect_uri: constants.SITE_URL + "/callback",
     });
     const tokens = await fetch("https://id.twitch.tv/oauth2/token", {
       method: "POST",
