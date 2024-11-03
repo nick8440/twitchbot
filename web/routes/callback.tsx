@@ -2,6 +2,7 @@ import { type FreshContext } from "$fresh/server.ts";
 import * as constants from "../../shared/const.ts";
 import { setToken } from "../../db/db.ts";
 import { Token } from "../../db/Tokens.ts";
+import { getExpirationDate } from "../../shared/expiration.ts";
 
 export default async function Callback(_req: Request, ctx: FreshContext) {
   const code = ctx.url.searchParams.get("code");
@@ -33,6 +34,7 @@ export default async function Callback(_req: Request, ctx: FreshContext) {
         return {
           access_token: data.access_token as string,
           refresh_token: data.refresh_token as string,
+          expires_in: data.expires_in as number,
         };
       })
       .catch((error) => {
@@ -73,7 +75,8 @@ export default async function Callback(_req: Request, ctx: FreshContext) {
         const token = new Token(
           userData.username,
           tokens.access_token,
-          tokens.refresh_token
+          tokens.refresh_token,
+          getExpirationDate(tokens.expires_in)
         );
         console.log("userID: ", userData.userID);
         console.log("Token: ", token);

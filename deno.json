@@ -2,6 +2,13 @@
   "tasks": {
     "start-chatbot": "deno run -A --unstable-kv chatbot/main.ts",
     "start-web": "deno run -A --unstable-kv web/main-web-only.ts",
-    "start": "deno run --unstable-kv -A --watch=static/,routes/,../../chatbot --env-file=.env web/main.ts"
+    "start": "deno run --unstable-kv -A --watch=static/,routes/,../../chatbot --env-file=.env web/main.ts",
+    "deploy": " deployctl deploy -p twitchbot844 --entrypoint=web/main.ts --prod; deployctl deployments delete --project=twitchbot844 --last --prev "
+  },
+  "deploy": {
+    "project": "7641507c-4308-4c63-b9bf-da468e180113",
+    "exclude": ["**/node_modules"],
+    "include": [],
+    "entrypoint": "web\\main.ts"
   }
 }

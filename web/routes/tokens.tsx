@@ -17,7 +17,8 @@ export const handler: Handlers = {
       const token = new Token(
         form.get("username")!.toString(),
         form.get("token")!.toString(),
-        form.get("refresh_token")!.toString()
+        form.get("refresh_token")!.toString(),
+        new Date()
       );
       await setToken(user_id, token);
     }
@@ -41,6 +42,8 @@ export default function MainPage(props: PageProps<TokenWrapper[]>) {
           <li class="py-2">
             User ID: {member.userID} User: {member.token.username} Token:{" "}
             {member.token.accessToken}
+            <br />
+            Expires on: {member.token.expirationDate}
             <form method="post">
               <input type="hidden" name="action" value="delete"></input>
               <input type="hidden" name="user_id" value={member.userID}></input>

@@ -12,4 +12,4 @@ import manifest from "./fresh.gen.ts";
 import config from "./fresh.config.ts";
 
 startChatbot();
-await start(manifest, config);
+start(manifest, config);

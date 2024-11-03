@@ -1,5 +1,6 @@
-import { getBotToken, setBotToken } from "../db/db.ts";
-import type { BotToken } from "../db/Tokens.ts";
+import { getBotToken, setBotToken, setToken } from "../db/db.ts";
+import type { BotToken, TokenWrapper } from "../db/Tokens.ts";
+import { isAfterTomorrow, getExpirationDate } from "../shared/expiration.ts";
 
 export async function checkAuth(token: string) {
   // https://dev.twitch.tv/docs/authentication/validate-tokens/#how-to-validate-a-token
@@ -57,20 +58,46 @@ export async function getBotAccessToken(): Promise<string | null> {
   }
 }
 
-function getExpirationDate(secondsUntilExpiration: number) {
-  const currentDate = new Date();
-  const expirationDate = new Date(
-    currentDate.getTime() + secondsUntilExpiration * 1000
-  );
-  return expirationDate;
-}
+export async function refreshToken(userToken: TokenWrapper) {
+  const body = new URLSearchParams({
+    client_id: "m23w8hhc1si78h39q74mkp8m5n4i5s",
+    client_secret: "kp0gpenqdvz5gwhck5k6itnb60f6gm",
+    grant_type: "refresh_token",
+    refresh_token: userToken.token.refreshToken,
+  });
 
-function isAfterTomorrow(date: Date) {
-  const now = new Date();
+  const data = await fetch("https://id.twitch.tv/oauth2/token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: body.toString(),
+  })
+    .then((response) => {
+      if (response.ok) {
+        return response.json();
+      }
+      return Promise.reject(response.json());
+    })
+    .then((data) => {
+      console.log(data);
+      return {
+        access_token: data.access_token as string,
+        refresh_token: data.refresh_token as string,
+        expires_in: data.expires_in as number,
+      };
+    })
+    .catch((error) => {
+      console.error(
+        "There was a problem with refreshing authentication token:",
+        error
+      );
+    });
 
-  // Calculate the threshold for "after tomorrow" by adding 48 hours
-  const afterTomorrow = new Date(now.getTime() + 48 * 60 * 60 * 1000);
-
-  // Check if the provided date is after this threshold
-  return date > afterTomorrow;
+  if (data) {
+    userToken.token.expirationDate = getExpirationDate(data.expires_in);
+    userToken.token.refreshToken = data.refresh_token;
+    userToken.token.accessToken = data.access_token;
+    await setToken(userToken.userID, userToken.token);
+  }
 }

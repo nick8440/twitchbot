@@ -1,15 +1,27 @@
 export class Token {
-  constructor(username: string, token: string, refreshToken: string) {
+  constructor(
+    username: string,
+    token: string,
+    refreshToken: string,
+    expirationDate: Date
+  ) {
     this.username = username;
     this.accessToken = token;
     this.refreshToken = refreshToken;
+    this.expirationDate = expirationDate;
   }
 
   username: string;
   accessToken: string;
   refreshToken: string;
+  expirationDate: Date;
   static fromObject(obj: Partial<Token>): Token {
-    return new Token(obj.username!, obj.accessToken!, obj.refreshToken!);
+    return new Token(
+      obj.username!,
+      obj.accessToken!,
+      obj.refreshToken!,
+      obj.expirationDate!
+    );
   }
 }
 
