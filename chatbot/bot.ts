@@ -2,7 +2,6 @@ import { checkAuth, getBotAccessToken, refreshToken } from "./auth.ts";
 import { startWebSocketClient } from "./websocket.ts";
 import { getAllTokens } from "../db/db.ts";
 import { TokenWrapper } from "../db/Tokens.ts";
-import { isAfterTomorrow } from "../shared/expiration.ts";
 
 const sockets: Map<string, WebSocket> = new Map();
 

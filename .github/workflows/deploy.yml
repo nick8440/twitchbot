@@ -1,36 +1,32 @@
-name: Deploy
+name: Deploy to EC2
+
 on:
   push:
-    branches: main
-  pull_request:
-    branches: main
+    branches:
+      - main # Triggers on push to the main branch
 
 jobs:
-  deploy:
-    name: Deploy
-    runs-on: ubuntu-latest
-
-    permissions:
-      id-token: write # Needed for auth with Deno Deploy
-      contents: read # Needed to clone the repository
+  build-and-deploy:
+    runs-on: self-hosted # Use the self-hosted runner
 
     steps:
-      - name: Clone repository
-        uses: actions/checkout@v4
+      - name: Check out the repository
+        uses: actions/checkout@v3
 
-      - name: Install Deno
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
+      - name: Build Docker image and deploy
+        run: |
+          # Navigate to the app directory, or clone the latest version if needed
+          cd ~/bot844/twitchbot || git clone https://github.com/nick8440/twitchbot.git ~/bot844/twitchbot && cd ~/bot844/twitchbot
 
-      - name: Build step
-        run: "deno run --unstable-kv -A web/dev.ts build"
+          # Pull the latest code
+          git pull origin main
 
-      - name: Upload to Deno Deploy
-        uses: denoland/deployctl@v1
-        with:
-          project: "twitchbot844"
-          entrypoint: "web/main.ts"
-          root: "."
-          
-          
+          # Build the Docker image locally on EC2
+          docker build -t bot844-image .
+
+          # Stop and remove any existing container
+          docker stop bot844 || true
+          docker rm bot844 || true
+
+          # Run the new container with the updated image
+          docker run -d --name bot844 -p 8000:8000 --env-file ../.env bot844-image:latest
