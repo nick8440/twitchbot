@@ -43,7 +43,7 @@ export default function MainPage(props: PageProps<TokenWrapper[]>) {
             User ID: {member.userID} User: {member.token.username} Token:{" "}
             {member.token.accessToken}
             <br />
-            Expires on: {member.token.expirationDate}
+            Expires on: {member.token.expirationDate.toUTCString()}
             <form method="post">
               <input type="hidden" name="action" value="delete"></input>
               <input type="hidden" name="user_id" value={member.userID}></input>
