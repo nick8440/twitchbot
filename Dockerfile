@@ -14,4 +14,4 @@ RUN cd web && deno cache main.ts
 CMD ["deno", "run", "--unstable-kv", "-A", "web/main.ts"]
 
 # Specify the volume mount for the Deno KV database
-VOLUME ["/db/denoKv"]
+VOLUME ["/app/db/denoKv"]
