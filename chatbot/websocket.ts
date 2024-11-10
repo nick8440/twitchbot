@@ -7,15 +7,22 @@ const RETRY_INTERVAL = 2000; // 2 seconds
 
 let websocketSessionID: string;
 
-export function startWebSocketClient(token: TokenWrapper, botToken: string) {
-  const websocketClient = createWebSocket();
+export function startWebSocketClient(
+  token: TokenWrapper,
+  botToken: string,
+  url: string | null = null
+) {
+  const websocketClient = createWebSocket(url);
 
   if (!websocketClient) {
     console.error("Could not create websocket client, cancelling connection");
     return;
   }
 
-  websocketClient.addEventListener("error", console.error);
+  websocketClient.addEventListener("error", (event) => {
+    console.error("Received an error from the websocket");
+    console.error(event);
+  });
 
   websocketClient.addEventListener("open", () => {
     console.log(
@@ -25,6 +32,11 @@ export function startWebSocketClient(token: TokenWrapper, botToken: string) {
 
   websocketClient.addEventListener("message", (messageEvent) => {
     handleWebSocketMessage(JSON.parse(messageEvent.data), token, botToken);
+  });
+
+  websocketClient.addEventListener("close", (event) => {
+    console.error("Received an close frame from the websocket");
+    console.error(event);
   });
 
   return websocketClient;
@@ -43,11 +55,32 @@ function handleWebSocketMessage(
       // Listen to EventSub, which joins the chatroom from your bot's account
       registerEventSubListeners(token);
       break;
+    case "session_keepalive": {
+      console.log("Received a websocket keepalive message");
+      break;
+    }
+    case "session_reconnect": {
+      console.log(
+        "Received a websocket reconnect message. Trying to connect using the url"
+      );
+      startWebSocketClient(token, botToken, data.payload.session.reconnect_url);
+      break;
+    }
+    case "revocation": {
+      console.log("Received a websocket revocation message.");
+      break;
+    }
     case "notification":
       switch (data.metadata.subscription_type) {
-        case "channel.chat.message":
+        case "channel.chat.message": {
+          //console.log(data);
+          // deno-lint-ignore no-explicit-any
+          const isMod = (data.payload.event.badges as any[]).some(
+            (b) => b.set_id == "broadcaster" || b.set_id == "moderator"
+          );
+          console.log("isMod: ", isMod);
           handleChatMessageEvent(
-            data.payload.event.broadcaster_user_name,
+            data.payload.event.chatter_user_name,
             data.payload.event.message.text,
             token.userID,
             botToken
@@ -56,6 +89,13 @@ function handleWebSocketMessage(
           //console.log(`MSG #${data.payload.event.broadcaster_user_login} <${data.payload.event.chatter_user_login}> ${data.payload.event.message.text}`);
 
           break;
+        }
+        case "stream.online": {
+          break;
+        }
+        case "stream.offline": {
+          break;
+        }
       }
       break;
   }
@@ -64,53 +104,66 @@ function handleWebSocketMessage(
 async function registerEventSubListeners(token: TokenWrapper) {
   // Register channel.chat.message
 
-  const headers = {
-    Authorization: "Bearer " + token.token.accessToken,
-    "Client-Id": constants.CLIENT_ID,
-    "Content-Type": "application/json",
-  };
-  const body = JSON.stringify({
-    type: "channel.chat.message",
-    version: "1",
-    condition: {
-      broadcaster_user_id: token.userID,
-      user_id: token.userID,
-    },
-    transport: {
-      method: "websocket",
-      session_id: websocketSessionID,
-    },
-  });
+  const register = async (type: string) => {
+    const headers = {
+      Authorization: "Bearer " + token.token.accessToken,
+      "Client-Id": constants.CLIENT_ID,
+      "Content-Type": "application/json",
+    };
+    const body = JSON.stringify({
+      type: type,
+      version: "1",
+      condition: {
+        broadcaster_user_id: token.userID,
+        user_id: token.userID,
+      },
+      transport: {
+        method: "websocket",
+        session_id: websocketSessionID,
+      },
+    });
 
-  console.log("Trying to subscribe");
-  console.log(headers);
-  console.log(body);
+    console.log("Trying to subscribe to " + type);
+    // console.log(headers);
+    // console.log(body);
 
-  const response = await fetch(
-    "https://api.twitch.tv/helix/eventsub/subscriptions",
-    {
-      method: "POST",
-      headers: headers,
-      body: body,
-    }
-  );
-  if (response.status != 202) {
-    const data = await response.json();
-    console.error(
-      "Failed to subscribe to channel.chat.message. API call returned status code " +
-        response.status
+    const response = await fetch(
+      "https://api.twitch.tv/helix/eventsub/subscriptions",
+      {
+        method: "POST",
+        headers: headers,
+        body: body,
+      }
     );
-    console.error(data);
-    return;
-  } else {
-    const data = await response.json();
-    console.log(`Subscribed to channel.chat.message [${data.data[0].id}]`);
-  }
+    if (response.status != 202) {
+      const data = await response.json();
+      console.error(
+        "Failed to subscribe to " +
+          type +
+          ". API call returned status code " +
+          response.status
+      );
+      console.error(data);
+      return;
+    } else {
+      const data = await response.json();
+      console.log(`Subscribed to ${type} [${data.data[0].id}]`);
+    }
+  };
+
+  await register("channel.chat.message");
+  await register("stream.online");
+  await register("stream.offline");
 }
 
-function createWebSocket(retries = 0): WebSocket | null {
+function createWebSocket(
+  url: string | null = null,
+  retries = 0
+): WebSocket | null {
   try {
-    const websocketClient = new WebSocket(constants.EVENTSUB_WEBSOCKET_URL);
+    const websocketClient = new WebSocket(
+      url ? url : constants.EVENTSUB_WEBSOCKET_URL
+    );
 
     // Handle WebSocket open event
     websocketClient.onopen = () => {
@@ -125,7 +178,7 @@ function createWebSocket(retries = 0): WebSocket | null {
       if (retries < MAX_RETRIES) {
         setTimeout(() => {
           console.log(`Retrying connection attempt ${retries + 1}`);
-          createWebSocket(retries + 1);
+          createWebSocket(null, retries + 1);
         }, RETRY_INTERVAL);
       } else {
         console.error(
