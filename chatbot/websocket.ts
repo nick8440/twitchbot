@@ -56,7 +56,7 @@ function handleWebSocketMessage(
       registerEventSubListeners(token);
       break;
     case "session_keepalive": {
-      console.log("Received a websocket keepalive message");
+      //console.log("Received a websocket keepalive message");
       break;
     }
     case "session_reconnect": {
