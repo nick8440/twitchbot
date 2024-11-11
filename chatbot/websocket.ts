@@ -14,30 +14,36 @@ export function startWebSocketClient(
 ) {
   const websocketClient = createWebSocket(url);
 
+  let pingInterval;
+
   if (!websocketClient) {
     console.error("Could not create websocket client, cancelling connection");
     return;
   }
 
-  websocketClient.addEventListener("error", (event) => {
+  websocketClient.onerror = (event) => {
     console.error("Received an error from the websocket");
     console.error(event);
-  });
+  };
 
-  websocketClient.addEventListener("open", () => {
+  websocketClient.onopen = () => {
     console.log(
       "WebSocket connection opened to " + constants.EVENTSUB_WEBSOCKET_URL
     );
-  });
+  };
 
-  websocketClient.addEventListener("message", (messageEvent) => {
+  websocketClient.onmessage = (messageEvent) => {
+    if (messageEvent.data.includes("PING")) {
+      console.log("PONG");
+      websocketClient.send("PONG :tmi.twitch.tv");
+    }
     handleWebSocketMessage(JSON.parse(messageEvent.data), token, botToken);
-  });
+  };
 
-  websocketClient.addEventListener("close", (event) => {
+  websocketClient.onclose = (event) => {
     console.error("Received an close frame from the websocket");
     console.error(event);
-  });
+  };
 
   return websocketClient;
 }
@@ -98,6 +104,11 @@ function handleWebSocketMessage(
         }
       }
       break;
+    default: {
+      console.log("Received a websocket message with unhandled type");
+      console.log(data);
+      break;
+    }
   }
 }
 
