@@ -76,10 +76,10 @@ function handleWebSocketMessage(
         case "channel.chat.message": {
           //console.log(data);
           // deno-lint-ignore no-explicit-any
-          const isMod = (data.payload.event.badges as any[]).some(
+          const _isMod = (data.payload.event.badges as any[]).some(
             (b) => b.set_id == "broadcaster" || b.set_id == "moderator"
           );
-          console.log("isMod: ", isMod);
+          //console.log("isMod: ", isMod);
           handleChatMessageEvent(
             data.payload.event.chatter_user_name,
             data.payload.event.message.text,
