@@ -1,6 +1,7 @@
 import { handleChatMessageEvent } from "./chat.ts";
 import * as constants from "../shared/const.ts";
 import type { TokenWrapper } from "../db/Tokens.ts";
+import { createOrRecreateSocket } from "./bot.ts";
 
 const MAX_RETRIES = 3;
 const RETRY_INTERVAL = 2000; // 2 seconds
@@ -37,7 +38,7 @@ export function startWebSocketClient(
   websocketClient.onclose = (event) => {
     console.error("Received a close frame from the websocket");
     console.error(event);
-    startWebSocketClient(token, botToken, url);
+    createOrRecreateSocket(token);
   };
 
   return websocketClient;
