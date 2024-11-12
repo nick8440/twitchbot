@@ -14,8 +14,6 @@ export function startWebSocketClient(
 ) {
   const websocketClient = createWebSocket(url);
 
-  let pingInterval;
-
   if (!websocketClient) {
     console.error("Could not create websocket client, cancelling connection");
     return;
@@ -33,16 +31,13 @@ export function startWebSocketClient(
   };
 
   websocketClient.onmessage = (messageEvent) => {
-    if (messageEvent.data.includes("PING")) {
-      console.log("PONG");
-      websocketClient.send("PONG :tmi.twitch.tv");
-    }
     handleWebSocketMessage(JSON.parse(messageEvent.data), token, botToken);
   };
 
   websocketClient.onclose = (event) => {
-    console.error("Received an close frame from the websocket");
+    console.error("Received a close frame from the websocket");
     console.error(event);
+    startWebSocketClient(token, botToken, url);
   };
 
   return websocketClient;
