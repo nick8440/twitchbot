@@ -1,5 +1,5 @@
 import type { PageProps } from "$fresh/server.ts";
-import { Token, TokenWrapper } from "../../db/Tokens.ts";
+import { Token, TokenWrapper } from "../../db/models/Tokens.ts";
 import { getAllTokens, removeToken, setToken } from "../../db/db.ts";
 import { Handlers } from "$fresh/server.ts";
 

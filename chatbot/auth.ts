@@ -1,5 +1,5 @@
 import { getBotToken, setBotToken, setToken } from "../db/db.ts";
-import type { BotToken, TokenWrapper } from "../db/Tokens.ts";
+import type { BotToken, TokenWrapper } from "../db/models/Tokens.ts";
 import { isAfterTomorrow, getExpirationDate } from "../shared/expiration.ts";
 
 export async function checkAuth(token: string) {

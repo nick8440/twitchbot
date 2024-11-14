@@ -1,7 +1,7 @@
 import { type FreshContext } from "$fresh/server.ts";
 import * as constants from "../../shared/const.ts";
 import { setToken } from "../../db/db.ts";
-import { Token } from "../../db/Tokens.ts";
+import { Token } from "../../db/models/Tokens.ts";
 import { getExpirationDate } from "../../shared/expiration.ts";
 
 export default async function Callback(_req: Request, ctx: FreshContext) {

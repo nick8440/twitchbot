@@ -1,9 +1,10 @@
 import { checkAuth, getBotAccessToken, refreshToken } from "./auth.ts";
 import { startWebSocketClient } from "./websocket.ts";
 import { getAllTokens } from "../db/db.ts";
-import { TokenWrapper } from "../db/Tokens.ts";
+import { TokenWrapper } from "../db/models/Tokens.ts";
+import { WebSocketWrapper } from "./models/WebSocketWrapper.ts";
 
-const sockets: Map<string, WebSocket> = new Map();
+const sockets: Map<string, WebSocketWrapper> = new Map();
 
 export async function start() {
   const userTokens = await getAllTokens();
@@ -21,25 +22,46 @@ export async function start() {
 }
 
 export function closeSocket(userID: string) {
-  const socket = sockets.get(userID);
-  if (socket) {
+  const data = sockets.get(userID);
+  if (data && data.Socket) {
     console.log("Closing a socket for user " + userID);
-    socket.close();
+    data.Socket.close();
   }
 }
 
-export async function createOrRecreateSocket(userToken: TokenWrapper) {
-  const socket = sockets.get(userToken.userID);
+export async function createOrRecreateSocket(
+  userToken: TokenWrapper,
+  socketUID: string | null = null
+) {
+  const data = sockets.get(userToken.userID);
   console.log("Recreating a socket for user " + userToken.userID);
-  if (socket) {
-    console.log("Closed existing socket");
-    socket.close();
+  if (data) {
+    if (socketUID) {
+      if (data.UID == socketUID) {
+        console.log("Closing socket " + data.UID);
+        data.Socket.close();
+      } else {
+        console.log(
+          "Trying to close socket " +
+            socketUID +
+            ", but currently saved socket for this user is " +
+            data.UID
+        );
+        console.log("Skipping recreating the socket...");
+        return;
+      }
+    } else {
+      console.log("Closing socket for user " + userToken.userID);
+      data.Socket.close();
+    }
   }
+
   const botToken = await getBotAccessToken();
   if (!botToken) {
     console.error("Could not retrieve bot token, socket will not be recreated");
     return;
   }
+
   await createWebSocket(userToken, botToken);
 }
 

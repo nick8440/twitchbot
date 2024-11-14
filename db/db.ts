@@ -1,49 +1,20 @@
 /// <reference lib="deno.unstable" />
 
-import { Token, TokenWrapper, type BotToken } from "./Tokens.ts";
+import { Token, TokenWrapper, type BotToken } from "./models/Tokens.ts";
 import * as path from "https://deno.land/std@0.138.0/path/mod.ts";
 import { closeSocket, createOrRecreateSocket } from "../chatbot/bot.ts";
+import { StreamInfo } from "./models/StreamInfo.ts";
+import { ChatterInfo } from "./models/ChatterInfo.ts";
+import { monotonicUlid } from "jsr:@std/ulid";
+
+const POINTS_PER_STREAM = 30;
 
 const isDenoDeploy = Deno.env.get("DENO_DEPLOYMENT_ID") !== undefined;
 const kv = isDenoDeploy
   ? await Deno.openKv()
   : await Deno.openKv(getModuleDir(import.meta) + "/denoKv/denoKv.db");
 
-// export async function isSocketInProgress(userID: string): Promise<boolean> {
-//   const entry = await kv.get(["socketsInProress", userID]);
-//   if (entry && entry.value) return true;
-//   return false;
-// }
-
-// export async function addSocketInProgress(userID: string) {
-//   await kv.set(["socketsInProress", userID], true);
-// }
-
-// export async function removeSocketInProgress(userID: string) {
-//   await kv.delete(["socketsInProress", userID]);
-// }
-
-// export function getTokenLastSubscriptionUpdate(
-//   userID: string | null
-// ): ReadableStream<[Deno.KvEntryMaybe<unknown>]> {
-//   if (userID) return kv.watch([["token", userID]]);
-//   else return kv.watch([["token"]]);
-// }
-
-// export async function updateTokenLastSubscription(userID: string) {
-//   const current = (await kv.get(["token", userID])).value as Partial<Token>;
-//   console.log(
-//     "Updating token's last subscription date from " +
-//       current.lastSubscriptionDate +
-//       " to " +
-//       new Date()
-//   );
-//   await kv.set(["token", userID], {
-//     ...current,
-//     lastSubscriptionDate: new Date(),
-//   } as Token);
-// }
-
+//#region Tokens
 export async function getAllTokens(): Promise<TokenWrapper[]> {
   const tokens: TokenWrapper[] = [];
   const entries = kv.list({ prefix: ["token"] });
@@ -99,4 +70,70 @@ export async function setBotToken(token: BotToken) {
 
 function getModuleDir(importMeta: ImportMeta): string {
   return path.resolve(path.dirname(path.fromFileUrl(importMeta.url)));
+}
+
+//#endregion
+
+//#region Streams
+export async function setStreamOnline(userID: string) {
+  const streamInfo = await getStreamInfo(userID);
+  let ID;
+  if (streamInfo) ID = streamInfo.ID++;
+  else ID = 1;
+  kv.set(["streamInfo", userID], { ID, Online: true } as StreamInfo);
+}
+
+export async function setStreamOffline(userID: string) {
+  const streamInfo = await getStreamInfo(userID);
+  let ID;
+  if (streamInfo) ID = streamInfo.ID;
+  else ID = 1;
+  kv.set(["streamInfo", userID], { ID, Online: false } as StreamInfo);
+}
+
+export async function getStreamInfo(
+  userID: string
+): Promise<StreamInfo | null> {
+  const result = await kv.get(["streamInfo", userID]);
+  if (!result.value) return null;
+  return result.value as StreamInfo;
+}
+//#endregion
+
+//#region Chatter info
+export async function getChatterInfo(
+  userID: string,
+  chatterID: string
+): Promise<ChatterInfo | null> {
+  const result = await kv.get(["streamInfo", userID, chatterID]);
+  if (!result.value) return null;
+  return result.value as ChatterInfo;
+}
+
+export async function userSentMessage(userID: string, chatterID: string) {
+  const currentStreamInfo = await getStreamInfo(userID);
+  if (!currentStreamInfo || !currentStreamInfo.Online) return;
+  const oldValue = await kv.get(["streamInfo", userID, chatterID]);
+  let info;
+  if (oldValue.value) {
+    info = oldValue.value as ChatterInfo;
+  } else {
+    info = {
+      Points: 0,
+      LastStreamID: -1,
+    } as ChatterInfo;
+  }
+
+  if (info.LastStreamID < currentStreamInfo.ID) {
+    info.Points += POINTS_PER_STREAM;
+    info.LastStreamID = currentStreamInfo.ID;
+    await kv.set(["streamInfo", userID, chatterID], info);
+  }
+}
+
+//#endregion
+
+//#region Betting
+export async function createBet(userID: string, options: string[]) {
+  await kv.set(["bet", userID, monotonicUlid()], options);
 }

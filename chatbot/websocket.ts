@@ -1,7 +1,8 @@
-import { handleChatMessageEvent } from "./chat.ts";
+import { handleChatMessageEvent } from "./handlers/controller.ts";
 import * as constants from "../shared/const.ts";
-import type { TokenWrapper } from "../db/Tokens.ts";
+import type { TokenWrapper } from "../db/models/Tokens.ts";
 import { createOrRecreateSocket } from "./bot.ts";
+import { WebSocketWrapper } from "./models/WebSocketWrapper.ts";
 
 const MAX_RETRIES = 3;
 const RETRY_INTERVAL = 2000; // 2 seconds
@@ -12,13 +13,15 @@ export function startWebSocketClient(
   token: TokenWrapper,
   botToken: string,
   url: string | null = null
-) {
+): WebSocketWrapper | null {
   const websocketClient = createWebSocket(url);
 
   if (!websocketClient) {
     console.error("Could not create websocket client, cancelling connection");
-    return;
+    return null;
   }
+
+  const uid = crypto.randomUUID();
 
   websocketClient.onerror = (event) => {
     console.error("Received an error from the websocket");
@@ -32,23 +35,24 @@ export function startWebSocketClient(
   };
 
   websocketClient.onmessage = (messageEvent) => {
-    handleWebSocketMessage(JSON.parse(messageEvent.data), token, botToken);
+    handleWebSocketMessage(JSON.parse(messageEvent.data), token, botToken, uid);
   };
 
   websocketClient.onclose = (event) => {
     console.error("Received a close frame from the websocket");
     console.error(event);
-    createOrRecreateSocket(token);
+    createOrRecreateSocket(token, uid);
   };
 
-  return websocketClient;
+  return { Socket: websocketClient, UID: uid } as WebSocketWrapper;
 }
 
 function handleWebSocketMessage(
   // deno-lint-ignore no-explicit-any
   data: any,
   token: TokenWrapper,
-  botToken: string
+  botToken: string,
+  socketUID: string
 ) {
   switch (data.metadata.message_type) {
     case "session_welcome": // First message you get from the WebSocket server when connecting
@@ -65,7 +69,7 @@ function handleWebSocketMessage(
       console.log(
         "Received a websocket reconnect message. Trying to connect using the url"
       );
-      startWebSocketClient(token, botToken, data.payload.session.reconnect_url);
+      createOrRecreateSocket(token, socketUID);
       break;
     }
     case "revocation": {
@@ -83,6 +87,7 @@ function handleWebSocketMessage(
           //console.log("isMod: ", isMod);
           handleChatMessageEvent(
             data.payload.event.chatter_user_name,
+            data.payload.event.chatter_user_id,
             data.payload.event.message.text,
             token.userID,
             botToken
