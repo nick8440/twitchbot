@@ -26,6 +26,7 @@ export function closeSocket(userID: string) {
   if (data && data.Socket) {
     console.log("Closing a socket for user " + userID);
     data.Socket.close();
+    sockets.delete(userID);
   }
 }
 
@@ -40,6 +41,7 @@ export async function createOrRecreateSocket(
       if (data.UID == socketUID) {
         console.log("Closing socket " + data.UID);
         data.Socket.close();
+        sockets.delete(userToken.userID);
       } else {
         console.log(
           "Trying to close socket " +
@@ -53,6 +55,7 @@ export async function createOrRecreateSocket(
     } else {
       console.log("Closing socket for user " + userToken.userID);
       data.Socket.close();
+      sockets.delete(userToken.userID);
     }
   }
 
