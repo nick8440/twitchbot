@@ -69,7 +69,11 @@ function handleWebSocketMessage(
       console.log(
         "Received a websocket reconnect message. Trying to connect using the url"
       );
-      createOrRecreateSocket(token, socketUID);
+      createOrRecreateSocket(
+        token,
+        socketUID,
+        data.payload.session.reconnect_url
+      );
       break;
     }
     case "revocation": {

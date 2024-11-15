@@ -25,38 +25,45 @@ export function closeSocket(userID: string) {
   const data = sockets.get(userID);
   if (data && data.Socket) {
     console.log("Closing a socket for user " + userID);
-    data.Socket.close();
     sockets.delete(userID);
+    data.Socket.close();
   }
 }
 
+/**
+ *
+ * @param userToken Required: The user token to be used (will be refreshed if needed)
+ * @param socketUID Optional: If specified, attempts to recreate an existing socket. If a socket doesn't exist, a new one will not be created.
+ * @param reconnectURL Optional: If specified, will try to connect the socket with the URL provided (for reconnects).
+ * If not specified, tries to create a new socket even if there isn't another one.
+ */
 export async function createOrRecreateSocket(
   userToken: TokenWrapper,
-  socketUID: string | null = null
+  socketUID: string | null = null,
+  reconnectURL: string | null = null
 ) {
   const data = sockets.get(userToken.userID);
   console.log("Recreating a socket for user " + userToken.userID);
-  if (data) {
-    if (socketUID) {
-      if (data.UID == socketUID) {
-        console.log("Closing socket " + data.UID);
-        data.Socket.close();
-        sockets.delete(userToken.userID);
-      } else {
-        console.log(
-          "Trying to close socket " +
-            socketUID +
-            ", but currently saved socket for this user is " +
-            data.UID
-        );
-        console.log("Skipping recreating the socket...");
-        return;
-      }
-    } else {
-      console.log("Closing socket for user " + userToken.userID);
-      data.Socket.close();
+  if (socketUID) {
+    console.log("Closing socket " + socketUID);
+    if (data?.UID == socketUID) {
+      console.log("Closing socket " + data.UID);
       sockets.delete(userToken.userID);
+      data.Socket.close();
+    } else {
+      console.log(
+        "Trying to close socket " +
+          socketUID +
+          ", but currently saved socket for this user is " +
+          (data ? data.UID : "not defined")
+      );
+      console.log("Skipping recreating the socket...");
+      return;
     }
+  } else if (data) {
+    console.log("Closing socket for user " + userToken.userID);
+    sockets.delete(userToken.userID);
+    data.Socket.close();
   }
 
   const botToken = await getBotAccessToken();
@@ -65,10 +72,14 @@ export async function createOrRecreateSocket(
     return;
   }
 
-  await createWebSocket(userToken, botToken);
+  await createWebSocket(userToken, botToken, reconnectURL);
 }
 
-async function createWebSocket(userToken: TokenWrapper, botToken: string) {
+async function createWebSocket(
+  userToken: TokenWrapper,
+  botToken: string,
+  url: string | null = null
+) {
   if (new Date() > userToken.token.expirationDate) {
     console.log(
       "Token for " +
@@ -90,7 +101,7 @@ async function createWebSocket(userToken: TokenWrapper, botToken: string) {
         ", trying to connect"
     );
     // Start WebSocket client and register handlers
-    const socket = startWebSocketClient(userToken, botToken);
+    const socket = startWebSocketClient(userToken, botToken, url);
     if (socket) sockets.set(userToken.userID, socket);
   } else {
     console.log(
