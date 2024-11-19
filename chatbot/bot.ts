@@ -45,7 +45,6 @@ export async function createOrRecreateSocket(
   const data = sockets.get(userToken.userID);
   console.log("Recreating a socket for user " + userToken.userID);
   if (socketUID) {
-    console.log("Closing socket " + socketUID);
     if (data?.UID == socketUID) {
       console.log("Closing socket " + data.UID);
       sockets.delete(userToken.userID);
@@ -101,7 +100,7 @@ async function createWebSocket(
         ", trying to connect"
     );
     // Start WebSocket client and register handlers
-    const socket = startWebSocketClient(userToken, botToken, url);
+    const socket = await startWebSocketClient(userToken, botToken, url);
     if (socket) sockets.set(userToken.userID, socket);
   } else {
     console.log(

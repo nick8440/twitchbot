@@ -1,8 +1,12 @@
-import { handleChatMessageEvent } from "./handlers/controller.ts";
+import {
+  handleChatMessageEvent,
+  handleStreamEvent,
+} from "./handlers/controller.ts";
 import * as constants from "../shared/const.ts";
 import type { TokenWrapper } from "../db/models/Tokens.ts";
 import { createOrRecreateSocket } from "./bot.ts";
 import { WebSocketWrapper } from "./models/WebSocketWrapper.ts";
+import { ChatMessageEvent, ChatMessageToken } from "./models/Events.ts";
 
 const MAX_RETRIES = 3;
 const RETRY_INTERVAL = 2000; // 2 seconds
@@ -26,6 +30,7 @@ export function startWebSocketClient(
   websocketClient.onerror = (event) => {
     console.error("Received an error from the websocket");
     console.error(event);
+    createOrRecreateSocket(token, uid);
   };
 
   websocketClient.onopen = () => {
@@ -34,20 +39,24 @@ export function startWebSocketClient(
     );
   };
 
-  websocketClient.onmessage = (messageEvent) => {
-    handleWebSocketMessage(JSON.parse(messageEvent.data), token, botToken, uid);
+  websocketClient.onmessage = async (messageEvent) => {
+    await handleWebSocketMessage(
+      JSON.parse(messageEvent.data),
+      token,
+      botToken,
+      uid
+    );
   };
 
   websocketClient.onclose = (event) => {
     console.error("Received a close frame from the websocket");
     console.error(event);
-    createOrRecreateSocket(token, uid);
   };
 
   return { Socket: websocketClient, UID: uid } as WebSocketWrapper;
 }
 
-function handleWebSocketMessage(
+async function handleWebSocketMessage(
   // deno-lint-ignore no-explicit-any
   data: any,
   token: TokenWrapper,
@@ -89,12 +98,13 @@ function handleWebSocketMessage(
             (b) => b.set_id == "broadcaster" || b.set_id == "moderator"
           );
           //console.log("isMod: ", isMod);
-          handleChatMessageEvent(
-            data.payload.event.chatter_user_name,
-            data.payload.event.chatter_user_id,
-            data.payload.event.message.text,
-            token.userID,
-            botToken
+          await handleChatMessageEvent(
+            {
+              ChatterName: data.payload.event.chatter_user_name,
+              ChatterID: data.payload.event.chatter_user_id,
+              ChatMessage: data.payload.event.message.text,
+            } as ChatMessageEvent,
+            { UserID: token.userID, AccessToken: botToken } as ChatMessageToken
           );
 
           //console.log(`MSG #${data.payload.event.broadcaster_user_login} <${data.payload.event.chatter_user_login}> ${data.payload.event.message.text}`);
@@ -102,9 +112,17 @@ function handleWebSocketMessage(
           break;
         }
         case "stream.online": {
+          await handleStreamEvent(true, {
+            UserID: token.userID,
+            AccessToken: botToken,
+          } as ChatMessageToken);
           break;
         }
         case "stream.offline": {
+          await handleStreamEvent(false, {
+            UserID: token.userID,
+            AccessToken: botToken,
+          } as ChatMessageToken);
           break;
         }
       }

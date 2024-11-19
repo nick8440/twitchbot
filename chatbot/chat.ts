@@ -1,19 +1,19 @@
 import * as constants from "../shared/const.ts";
+import { ChatMessageToken } from "./models/Events.ts";
 
 export async function sendChatMessage(
   chatMessage: string,
-  userID: string,
-  botAccessToken: string
+  token: ChatMessageToken
 ) {
   const response = await fetch("https://api.twitch.tv/helix/chat/messages", {
     method: "POST",
     headers: {
-      Authorization: "Bearer " + botAccessToken,
+      Authorization: "Bearer " + token.AccessToken,
       "Client-Id": constants.CLIENT_ID,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      broadcaster_id: userID,
+      broadcaster_id: token.UserID,
       sender_id: constants.BOT_USER_ID,
       message: chatMessage,
     }),

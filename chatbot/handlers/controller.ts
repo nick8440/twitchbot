@@ -1,16 +1,17 @@
 import { sendChatMessage } from "../chat.ts";
+import { ChatMessageEvent, ChatMessageToken } from "../models/Events.ts";
 
 export async function handleChatMessageEvent(
-  chatterName: string,
-  chatterID: string,
-  chatMessage: string,
-  userID: string,
-  botAccessToken: string
+  event: ChatMessageEvent,
+  token: ChatMessageToken
 ) {
-  chatMessage = chatMessage.trim();
-  if (chatMessage == "HeyGuys") {
-    await sendChatMessage(`@${chatterName} VoHiYo`, userID, botAccessToken);
+  event.ChatMessage = event.ChatMessage.trim();
+  if (event.ChatMessage == "HeyGuys") {
+    await sendChatMessage(`@${event.ChatterName} VoHiYo`, token);
   }
 }
 
-export async function handleStreamEvents(streamOn: boolean) {}
+export async function handleStreamEvent(
+  streamOn: boolean,
+  token: ChatMessageToken
+) {}
