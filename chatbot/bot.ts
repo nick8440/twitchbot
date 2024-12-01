@@ -19,6 +19,14 @@ export async function start() {
   userTokens.forEach(async (userToken) => {
     await createWebSocket(userToken, botToken);
   });
+  // setInterval(() => {
+  //   console.log("Health check");
+  //   console.log(sockets.entries.length, " sockets currently saved");
+  //   sockets.forEach((element) => {
+  //     console.log("Socket " + element.UID);
+  //     console.log(element.Socket.OPEN);
+  //   });
+  // });
 }
 
 export function closeSocket(userID: string) {

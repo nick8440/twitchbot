@@ -10,8 +10,10 @@ import { ChatMessageEvent, ChatMessageToken } from "./models/Events.ts";
 
 const MAX_RETRIES = 3;
 const RETRY_INTERVAL = 2000; // 2 seconds
+const KEEPALIVE_TIMEOUT = 15000; // 15 seconds
 
 let websocketSessionID: string;
+let lastKeepAlive = Date.now();
 
 export function startWebSocketClient(
   token: TokenWrapper,
@@ -53,6 +55,17 @@ export function startWebSocketClient(
     console.error(event);
   };
 
+  setInterval(() => {
+    const timeout = Date.now() - lastKeepAlive;
+    if (timeout > KEEPALIVE_TIMEOUT) {
+      console.log(
+        "No keepalive message was received in 15 seconds, assuming the connection is dead (thanks twitch)"
+      );
+      createOrRecreateSocket(token, uid);
+    }
+    console.log("Last keepalive was " + timeout / 1000 + " seconds ago");
+  }, 10000);
+
   return { Socket: websocketClient, UID: uid } as WebSocketWrapper;
 }
 
@@ -72,6 +85,7 @@ async function handleWebSocketMessage(
       break;
     case "session_keepalive": {
       //console.log("Received a websocket keepalive message");
+      lastKeepAlive = Date.now();
       break;
     }
     case "session_reconnect": {

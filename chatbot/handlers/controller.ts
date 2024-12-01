@@ -1,14 +1,12 @@
-import { sendChatMessage } from "../chat.ts";
 import { ChatMessageEvent, ChatMessageToken } from "../models/Events.ts";
+import { SimpleChatResponseHandler } from "./simpleChatResponse.ts";
 
 export async function handleChatMessageEvent(
   event: ChatMessageEvent,
   token: ChatMessageToken
 ) {
   event.ChatMessage = event.ChatMessage.trim();
-  if (event.ChatMessage == "HeyGuys") {
-    await sendChatMessage(`@${event.ChatterName} VoHiYo`, token);
-  }
+  await Promise.all([SimpleChatResponseHandler(event, token)]);
 }
 
 export async function handleStreamEvent(
