@@ -7,13 +7,21 @@ import type { TokenWrapper } from "../db/models/Tokens.ts";
 import { createOrRecreateSocket } from "./bot.ts";
 import { WebSocketWrapper } from "./models/WebSocketWrapper.ts";
 import { ChatMessageEvent, ChatMessageToken } from "./models/Events.ts";
+import {
+  SessionWelcomeData,
+  SessionReconnectData,
+  NotificationData,
+  WebSocketData,
+} from "./models/WebSocketData.ts";
 
 const MAX_RETRIES = 3;
 const RETRY_INTERVAL = 2000; // 2 seconds
 const KEEPALIVE_TIMEOUT = 15000; // 15 seconds
 
+const lastKeepAlives: Map<string, { timestamp: number; interval: number }> =
+  new Map();
+
 let websocketSessionID: string;
-let lastKeepAlive = Date.now();
 
 export function startWebSocketClient(
   token: TokenWrapper,
@@ -29,6 +37,22 @@ export function startWebSocketClient(
 
   const uid = crypto.randomUUID();
 
+  const interval = setInterval(() => {
+    const lastKeepAlive = lastKeepAlives.get(uid)?.timestamp;
+    if (!lastKeepAlive) return;
+
+    const timeout = Date.now() - lastKeepAlive;
+    if (timeout > KEEPALIVE_TIMEOUT) {
+      console.log(
+        "No keepalive message received in the timeout period, reconnecting..."
+      );
+      clearKeepAliveAndRecreateSocket(token, uid);
+    }
+  }, 10000); // Check every 10 seconds
+
+  // Store both timestamp and interval ID in the Map
+  lastKeepAlives.set(uid, { timestamp: Date.now(), interval });
+
   websocketClient.onerror = (event) => {
     console.error("Received an error from the websocket");
     console.error(event);
@@ -42,12 +66,13 @@ export function startWebSocketClient(
   };
 
   websocketClient.onmessage = async (messageEvent) => {
-    await handleWebSocketMessage(
-      JSON.parse(messageEvent.data),
-      token,
-      botToken,
-      uid
-    );
+    const data = JSON.parse(messageEvent.data);
+    //console.log(data);
+    await handleWebSocketMessage(data, token, botToken, uid);
+
+    if (data.metadata?.message_type === "session_keepalive") {
+      lastKeepAlives.set(uid, { timestamp: Date.now(), interval });
+    }
   };
 
   websocketClient.onclose = (event) => {
@@ -55,74 +80,83 @@ export function startWebSocketClient(
     console.error(event);
   };
 
-  setInterval(() => {
-    const timeout = Date.now() - lastKeepAlive;
-    if (timeout > KEEPALIVE_TIMEOUT) {
-      console.log(
-        "No keepalive message was received in 15 seconds, assuming the connection is dead (thanks twitch)"
-      );
-      createOrRecreateSocket(token, uid);
-    }
-    console.log("Last keepalive was " + timeout / 1000 + " seconds ago");
-  }, 10000);
-
   return { Socket: websocketClient, UID: uid } as WebSocketWrapper;
 }
 
+function clearKeepAliveAndRecreateSocket(
+  token: TokenWrapper,
+  uid: string,
+  reconnectURL: string | null = null
+) {
+  // Clear the interval associated with this WebSocket
+  const keepAliveData = lastKeepAlives.get(uid);
+  if (keepAliveData) {
+    clearInterval(keepAliveData.interval);
+    lastKeepAlives.delete(uid);
+  }
+
+  createOrRecreateSocket(token, uid, reconnectURL);
+}
+
 async function handleWebSocketMessage(
-  // deno-lint-ignore no-explicit-any
-  data: any,
+  data: WebSocketData, // No need for 'any' anymore
   token: TokenWrapper,
   botToken: string,
   socketUID: string
 ) {
-  switch (data.metadata.message_type) {
-    case "session_welcome": // First message you get from the WebSocket server when connecting
-      websocketSessionID = data.payload.session.id; // Register the Session ID it gives us
-
-      // Listen to EventSub, which joins the chatroom from your bot's account
+  // Check the 'message_type' to determine which type of message it is
+  switch (data.metadata?.message_type) {
+    case "session_welcome": {
+      // Narrow the type for session_welcome message
+      const welcomeData = data as SessionWelcomeData;
+      websocketSessionID = welcomeData.payload.session.id;
       registerEventSubListeners(token);
       break;
+    }
     case "session_keepalive": {
-      //console.log("Received a websocket keepalive message");
-      lastKeepAlive = Date.now();
+      // No additional actions for session_keepalive
       break;
     }
     case "session_reconnect": {
+      // Narrow the type for session_reconnect message
+      const reconnectData = data as SessionReconnectData;
       console.log(
-        "Received a websocket reconnect message. Trying to connect using the url"
+        "Received a websocket reconnect message. Trying to connect using the URL"
       );
-      createOrRecreateSocket(
+      clearKeepAliveAndRecreateSocket(
         token,
         socketUID,
-        data.payload.session.reconnect_url
+        reconnectData.payload.session.reconnect_url
       );
       break;
     }
     case "revocation": {
+      // Handle revocation if necessary
       console.log("Received a websocket revocation message.");
       break;
     }
-    case "notification":
-      switch (data.metadata.subscription_type) {
+    case "notification": {
+      // Narrow the type for notification message
+      const notificationData = data as NotificationData;
+
+      switch (notificationData.metadata.subscription_type) {
         case "channel.chat.message": {
-          //console.log(data);
-          // deno-lint-ignore no-explicit-any
-          const _isMod = (data.payload.event.badges as any[]).some(
-            (b) => b.set_id == "broadcaster" || b.set_id == "moderator"
+          const isMod = notificationData.payload.event.badges.some(
+            (b) => b.set_id === "moderator"
           );
-          //console.log("isMod: ", isMod);
+          const isBroadcaster = notificationData.payload.event.badges.some(
+            (b) => b.set_id === "broadcaster"
+          );
           await handleChatMessageEvent(
             {
-              ChatterName: data.payload.event.chatter_user_name,
-              ChatterID: data.payload.event.chatter_user_id,
-              ChatMessage: data.payload.event.message.text,
+              ChatterName: notificationData.payload.event.chatter_user_name,
+              ChatterID: notificationData.payload.event.chatter_user_id,
+              ChatMessage: notificationData.payload.event.message.text,
+              IsChatterMod: isMod,
+              IsChatterBroadcaster: isBroadcaster,
             } as ChatMessageEvent,
             { UserID: token.userID, AccessToken: botToken } as ChatMessageToken
           );
-
-          //console.log(`MSG #${data.payload.event.broadcaster_user_login} <${data.payload.event.chatter_user_login}> ${data.payload.event.message.text}`);
-
           break;
         }
         case "stream.online": {
@@ -141,6 +175,7 @@ async function handleWebSocketMessage(
         }
       }
       break;
+    }
     default: {
       console.log("Received a websocket message with unhandled type");
       console.log(data);

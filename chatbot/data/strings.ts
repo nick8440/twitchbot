@@ -2,11 +2,19 @@ const localization: LocalizationMap = {
   greeting: {
     en: "{0} VoHiYo",
   },
+  chatgpt_timeout: {
+    en: "ChatGPT is still on cooldown for {0} seconds!",
+    ru: "ChatGPT в откате еще {0} секунд(ы)!",
+  },
+  chatgpt_offline: {
+    en: "ChatGPT only works while the stream is on!",
+    ru: "ChatGPT работает только пока запущен стрим!",
+  },
 };
 
-type SupportedLanguages = "en" | "es" | "fr" | "de"; // Add more languages as needed
+type SupportedLanguages = "en" | "ru"; // Add more languages as needed
 
-type LocalizationKeys = "greeting"; // Add more keys as needed
+type LocalizationKeys = "greeting" | "chatgpt_timeout" | "chatgpt_offline"; // Add more keys as needed
 
 type LocalizationMap = Partial<{
   [key in LocalizationKeys]: Partial<{

@@ -5,6 +5,11 @@ export async function sendChatMessage(
   chatMessage: string,
   token: ChatMessageToken
 ) {
+  if (chatMessage.trim().length < 0) {
+    console.error("Tried to send an empty message");
+    console.trace();
+    return;
+  }
   const response = await fetch("https://api.twitch.tv/helix/chat/messages", {
     method: "POST",
     headers: {
@@ -25,5 +30,14 @@ export async function sendChatMessage(
     console.error(data);
   } else {
     console.log("Sent chat message: " + chatMessage);
+  }
+}
+
+export async function sendMessageInChunks(
+  chatMessage: string,
+  token: ChatMessageToken
+) {
+  for (const chunk of chatMessage.match(/.{1,499}/g) || []) {
+    await sendChatMessage(chunk, token);
   }
 }
