@@ -2,7 +2,8 @@
 A generic [Deno](https://deno.com/)-based Twitch Chatbot implementation that can be hosted on your own machine or on a server.
 ## Overview
 The project contains two parts:
-1. A small website that contains a "Login with Twitch" button, allowing your users to connect the bot to their channel.![image](https://github.com/user-attachments/assets/f33151b9-34c2-4ae7-ad18-252ac20fc907)
+1. A small website that contains a "Login with Twitch" button, allowing your users to connect the bot to their channel.
+![image](https://github.com/user-attachments/assets/f33151b9-34c2-4ae7-ad18-252ac20fc907)
 2. A backend-only running service that contains the actual chatbot, using Twitch Websocket API to react to events and messages.
 
 ## Running the bot
