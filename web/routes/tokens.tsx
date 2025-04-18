@@ -5,6 +5,10 @@ import { Handlers } from "$fresh/server.ts";
 
 export const handler: Handlers = {
   async GET(_req, ctx) {
+    const hostname = new URL(_req.url).hostname;
+    if (hostname !== "localhost" && hostname !== "127.0.0.1") {
+      return new Response("404 Not Found", { status: 404 });
+    }
     const tokens = await getAllTokens();
     return await ctx.render(tokens);
   },
