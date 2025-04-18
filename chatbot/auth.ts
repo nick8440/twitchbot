@@ -3,29 +3,51 @@ import type { BotToken, TokenWrapper } from "../db/models/Tokens.ts";
 import { isAfterTomorrow, getExpirationDate } from "../shared/expiration.ts";
 
 export async function checkAuth(token: string) {
-  // https://dev.twitch.tv/docs/authentication/validate-tokens/#how-to-validate-a-token
-  const response: Response = await fetch(
-    "https://id.twitch.tv/oauth2/validate",
-    {
+  const url = "https://id.twitch.tv/oauth2/validate";
+  const headers = {
+    Authorization: "OAuth " + token,
+  };
+
+  const baseDelay = 2000;
+  const maxDelay = 32000; // cap delay at 32 seconds
+
+  const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
+
+  let attempt = 0;
+
+  while (true) {
+    const response: Response = await fetch(url, {
       method: "GET",
-      headers: {
-        Authorization: "OAuth " + token,
-      },
+      headers,
+    });
+
+    if (response.status === 200) {
+      return true;
+    } else if (response.status === 500) { // Internal Server Error
+      // Since its Twitch API`s fault, we can retry the request
+      const data = await response.json();
+      const waitTime = Math.min(baseDelay * 2 ** attempt, maxDelay);
+      console.warn("/oauth2/validate returned status code 500.");
+      console.error(data);
+      console.warn(
+        `Received 500 error on attempt ${attempt + 1}. Retrying in ${
+          waitTime / 1000
+        } seconds...`
+      );
+      await delay(waitTime);
+      attempt++;
+    } else { // Usually 40x errors
+      const data = await response.json();
+      console.error(
+        "Token is not valid. /oauth2/validate returned status code " +
+          response.status
+      );
+      console.error(data);
+      return false;
     }
-  );
-
-  if (response.status != 200) {
-    const data = await response.json();
-    console.error(
-      "Token is not valid. /oauth2/validate returned status code " +
-        response.status
-    );
-    console.error(data);
-    return false;
   }
-
-  return true;
 }
+
 
 export async function getBotAccessToken(): Promise<string | null> {
   const token = await getBotToken();
