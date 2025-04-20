@@ -29,4 +29,4 @@ jobs:
           docker rm bot844 || true
 
           # Run the new container with the updated image
-          docker run -d --name bot844 -p 8000:8000 --env-file ../.env  -v bot844-denoKv:/app/db/denoKv bot844-image:latest
+          docker run -d --name bot844 -p 8000:8000 --restart unless-stopped --env-file ../.env  -v bot844-denoKv:/app/db/denoKv bot844-image:latest
